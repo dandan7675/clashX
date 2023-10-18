@@ -10,7 +10,6 @@ import Cocoa
 import RxCocoa
 import RxSwift
 import WebKit
-import WebViewJavascriptBridge
 
 enum WebCacheCleaner {
     static func clean() {
@@ -26,20 +25,12 @@ enum WebCacheCleaner {
 }
 
 class ClashWebViewContoller: NSViewController {
-    let webview: CustomWKWebView = CustomWKWebView()
-    var bridge: WebViewJavascriptBridge?
+    let webview: CustomWKWebView = .init()
+    var bridge: JSBridge?
     let disposeBag = DisposeBag()
     let minSize = NSSize(width: 920, height: 580)
 
     let effectView = NSVisualEffectView()
-
-    static func createWindowController() -> NSWindowController {
-        let sb = NSStoryboard(name: "Main", bundle: Bundle.main)
-        let vc = sb.instantiateController(withIdentifier: "ClashWebViewContoller") as! ClashWebViewContoller
-        let wc = NSWindowController(window: NSWindow())
-        wc.contentViewController = vc
-        return wc
-    }
 
     override func loadView() {
         view = NSView(frame: NSRect(origin: .zero, size: minSize))
@@ -61,14 +52,8 @@ class ClashWebViewContoller: NSViewController {
         webview.configuration.userContentController.addUserScript(script)
 
         bridge = JsBridgeUtil.initJSbridge(webview: webview, delegate: self)
-        registerExtenalJSBridgeFunction()
 
         webview.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
-
-        NotificationCenter.default.rx.notification(.configFileChange).bind {
-            [weak self] _ in
-            self?.bridge?.callHandler("onConfigChange")
-        }.disposed(by: disposeBag)
 
         NotificationCenter.default.rx.notification(.reloadDashboard).bind {
             [weak self] _ in
@@ -86,9 +71,6 @@ class ClashWebViewContoller: NSViewController {
 
         view.window?.isOpaque = false
         view.window?.backgroundColor = NSColor.clear
-        view.window?.styleMask.insert(.closable)
-        view.window?.styleMask.insert(.resizable)
-        view.window?.styleMask.insert(.miniaturizable)
         view.window?.toolbar = NSToolbar()
         view.window?.toolbar?.showsBaselineSeparator = false
         view.wantsLayer = true
@@ -109,7 +91,7 @@ class ClashWebViewContoller: NSViewController {
     }
 
     func loadWebRecourses() {
-        WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeOfflineWebApplicationCache, WKWebsiteDataTypeMemoryCache], modifiedSince: Date(timeIntervalSince1970: 0), completionHandler: { })
+        WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeOfflineWebApplicationCache, WKWebsiteDataTypeMemoryCache], modifiedSince: Date(timeIntervalSince1970: 0), completionHandler: {})
         // defaults write com.west2online.ClashX webviewUrl "your url"
         if let userDefineUrl = UserDefaults.standard.string(forKey: "webviewUrl"), let url = URL(string: userDefineUrl) {
             Logger.log("get user define url: \(url)")
@@ -124,17 +106,10 @@ class ClashWebViewContoller: NSViewController {
         }
         Logger.log("load dashboard url fail", level: .error)
     }
-}
 
-extension ClashWebViewContoller {
-    func registerExtenalJSBridgeFunction() {
-        bridge?.registerHandler("setDragAreaHeight") {
-            [weak self] anydata, responseCallback in
-            if let height = anydata as? CGFloat {
-                self?.webview.dragableAreaHeight = height
-            }
-            responseCallback?(nil)
-        }
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        NSAlert.alert(with: message)
+        completionHandler()
     }
 }
 

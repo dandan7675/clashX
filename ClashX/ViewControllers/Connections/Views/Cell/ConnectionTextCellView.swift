@@ -24,15 +24,16 @@ class ConnectionTextCellView: NSView, ConnectionCellProtocol {
     }
 
     func setupUI() {
+        clipsToBounds = true
         addSubview(label)
         label.font = NSFont.systemFont(ofSize: 12)
         label.makeConstraints {
             [$0.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 0),
-            $0.centerYAnchor.constraint(equalTo: centerYAnchor)]
+             $0.centerYAnchor.constraint(equalTo: centerYAnchor)]
         }
     }
 
-    func setup(with connection:  ClashConnectionSnapShot.Connection, type: ConnectionColume) {
+    func setup(with connection: ClashConnectionSnapShot.Connection, type: ConnectionColume) {
         cancellable.removeAll()
         switch type {
         case .upload:
@@ -44,7 +45,7 @@ class ConnectionTextCellView: NSView, ConnectionCellProtocol {
         case .currentDownload:
             connection.$downloadSpeed.map { SpeedUtils.getSpeedString(for: $0) }.weakAssign(to: \.stringValue, on: label).store(in: &cancellable)
         case .status:
-            connection.$status.map { $0.title }.weakAssign(to: \.stringValue, on: label).store(in: &cancellable)
+            connection.$status.map(\.title).weakAssign(to: \.stringValue, on: label).store(in: &cancellable)
         case .statusIcon, .process:
             return
         case .rule:
